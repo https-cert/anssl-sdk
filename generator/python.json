@@ -1,0 +1,7 @@
+{
+  "packageName": "anssl",
+  "projectName": "anssl",
+  "packageVersion": "0.1.0",
+  "pythonVersion": "3.11",
+  "library": "urllib3"
+}

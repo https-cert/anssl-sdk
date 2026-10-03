@@ -1,0 +1,11 @@
+{
+  "groupId": "cn.anssl",
+  "artifactId": "anssl-sdk",
+  "artifactVersion": "0.1.0",
+  "invokerPackage": "cn.anssl.sdk",
+  "apiPackage": "cn.anssl.sdk.api",
+  "modelPackage": "cn.anssl.sdk.model",
+  "library": "native",
+  "dateLibrary": "java8",
+  "hideGenerationTimestamp": true
+}

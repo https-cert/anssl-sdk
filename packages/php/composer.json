@@ -1,0 +1,41 @@
+{
+    "name": "anssl/sdk",
+    "description": "ANSSL 证书生命周期公开 REST API。所有请求使用 Bearer AccessKey。 成功响应使用 code=0 envelope；错误响应的 HTTP 状态与数字 code 保持一致。",
+    "keywords": [
+        "anssl",
+        "certificate",
+        "acme",
+        "php",
+        "sdk",
+        "rest",
+        "api"
+    ],
+    "homepage": "https://anssl.cn",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "ANSSL",
+            "homepage": "https://anssl.cn"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "guzzlehttp/guzzle": "^7.3",
+        "guzzlehttp/psr7": "^1.7 || ^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "autoload": {
+        "psr-4": { "Anssl\\" : "lib/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "Anssl\\Test\\" : "test/" }
+    },
+    "scripts": {
+        "test": "phpunit test"
+    }
+}

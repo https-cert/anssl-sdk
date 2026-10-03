@@ -1,0 +1,41 @@
+{
+  "name": "@anssl/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript and JavaScript SDK for ANSSL",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "test": "bun test",
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=256 node node_modules/typescript/lib/tsc.js --noEmit",
+    "check": "bun run typecheck && bun test && bun run build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/https-cert/anssl-sdk.git",
+    "directory": "packages/typescript"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.5",
+    "typescript": "5.9.3"
+  }
+}

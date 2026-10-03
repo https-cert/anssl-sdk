@@ -1,0 +1,21 @@
+{
+  "name": "anssl-sdk-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "packages/typescript"
+  ],
+  "scripts": {
+    "check": "bun run lint:spec && bun run bundle:spec && bun run verify:contract && bun run verify:licenses",
+    "lint:spec": "NODE_OPTIONS=--max-old-space-size=256 redocly lint openapi/anssl.openapi.yaml",
+    "bundle:spec": "NODE_OPTIONS=--max-old-space-size=256 redocly bundle openapi/anssl.openapi.yaml --output openapi/dist/anssl.openapi.yaml",
+    "generate": "bun run scripts/generate.ts",
+    "verify:contract": "bun run scripts/verify-contract.ts",
+    "verify:licenses": "bun run scripts/verify-licenses.ts"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.39.1",
+    "@redocly/cli": "2.39.0"
+  }
+}

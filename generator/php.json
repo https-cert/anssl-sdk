@@ -1,0 +1,8 @@
+{
+  "packageName": "anssl-sdk",
+  "composerPackageName": "anssl/sdk",
+  "invokerPackage": "Anssl",
+  "artifactVersion": "0.1.0",
+  "srcBasePath": "lib",
+  "variableNamingConvention": "camelCase"
+}

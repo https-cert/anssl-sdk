@@ -1,0 +1,8 @@
+{
+  "packageName": "Anssl",
+  "packageVersion": "0.1.0",
+  "targetFramework": "net8.0",
+  "nullableReferenceTypes": true,
+  "library": "httpclient",
+  "useDateTimeOffset": true
+}

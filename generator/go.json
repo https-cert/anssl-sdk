@@ -1,0 +1,7 @@
+{
+  "packageName": "anssl",
+  "packageVersion": "0.1.0",
+  "moduleName": "github.com/https-cert/anssl-sdk/packages/go",
+  "enumClassPrefix": true,
+  "generateInterfaces": true
+}

@@ -1,0 +1,34 @@
+# Local environment
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Dependencies and caches
+node_modules/
+/packages/python/.venv/
+/packages/python/.pytest_cache/
+/packages/python/**/__pycache__/
+/packages/python/*.egg-info/
+/packages/java/.gradle/
+/packages/php/vendor/
+/packages/php/composer.lock
+
+# Build and generated output
+/openapi/dist/
+/work/
+/packages/typescript/dist/
+/packages/python/build/
+/packages/python/dist/
+/packages/java/build/
+/packages/php/dist/
+/packages/php/.phpunit.result.cache
+/packages/csharp/**/bin/
+/packages/csharp/**/obj/
+/packages/csharp/TestResults/
+/packages/go/*.prof
+/packages/go/*.test
+
+# Local noise
+*.log
+.DS_Store

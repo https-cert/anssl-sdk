@@ -1,0 +1,10 @@
+{
+  "contractVersion": "1.0.0",
+  "openapiVersion": "3.0.3",
+  "backendRepository": "https://github.com/https-cert/cert",
+  "backendRevision": "9602b15c68a77b27580dfa72a4c1d6f389897d41",
+  "backendPath": "openapi/anssl.openapi.yaml",
+  "sha256": "b64ca983531d46fe01f9132f9e4d7a7e038647db3d60fbf5047839fbef19de73",
+  "syncedAt": "2026-07-17T10:50:01+08:00",
+  "status": "working-tree"
+}

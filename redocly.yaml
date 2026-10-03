@@ -1,0 +1,15 @@
+extends:
+  - recommended
+
+apis:
+  anssl@v1:
+    root: ./openapi/anssl.openapi.yaml
+
+rules:
+  info-license: off
+  no-server-example.com: error
+  operation-4xx-response: error
+  operation-operationId: error
+  operation-summary: error
+  security-defined: error
+

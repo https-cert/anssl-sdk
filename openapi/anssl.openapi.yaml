@@ -1,0 +1,843 @@
+openapi: 3.0.3
+
+info:
+  title: ANSSL OpenAPI
+  version: 1.0.0
+  description: |
+    ANSSL 证书生命周期公开 REST API。所有请求使用 Bearer AccessKey。
+    成功响应使用 code=0 envelope；错误响应的 HTTP 状态与数字 code 保持一致。
+  contact:
+    name: ANSSL
+    url: https://anssl.cn
+
+externalDocs:
+  description: ANSSL 开放平台文档
+  url: https://anssl.cn/open-platform
+
+servers:
+  - url: https://anssl.cn/openapi/v1
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Certificates
+    description: 证书查询、验证、生命周期操作和下载。
+  - name: Certificate operations
+    description: 证书异步操作状态。
+
+paths:
+  /cert:
+    get:
+      tags: [Certificates]
+      operationId: listCertificates
+      summary: 查询证书列表
+      description: 查询当前 AccessKey 所属用户的自动签发证书；未知 status 返回 400。
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: keyword
+          in: query
+          description: 按证书主域名模糊搜索。
+          schema:
+            type: string
+          example: example.com
+        - name: status
+          in: query
+          description: 按证书状态筛选。
+          schema:
+            $ref: '#/components/schemas/CertificateStatus'
+      responses:
+        '200':
+          description: 证书列表。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateListSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cert/check-domain:
+    post:
+      tags: [Certificates]
+      operationId: checkCertificateDomains
+      summary: 检查 DNS-01 CNAME 状态
+      description: 返回待验证域名需要配置的 CNAME 记录及当前解析状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckDomainRequest'
+            example:
+              domains: [example.com, '*.example.com']
+      responses:
+        '200':
+          description: CNAME 检查结果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckDomainSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cert/apply:
+    post:
+      tags: [Certificates]
+      operationId: submitCertificateAction
+      summary: 提交证书生命周期操作
+      description: |
+        提交 apply、renew、revoke 或 delete。action 为空时默认为 apply。
+        apply、renew 和 revoke 返回字符串 operationId 和 requestKey；delete 同步完成。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ApplyCertificateRequest'
+                - $ref: '#/components/schemas/RenewCertificateRequest'
+                - $ref: '#/components/schemas/RevokeCertificateRequest'
+                - $ref: '#/components/schemas/DeleteCertificateRequest'
+            examples:
+              apply:
+                summary: 申请证书
+                value:
+                  action: apply
+                  domains: [example.com, '*.example.com']
+                  ca: LetsEncrypt
+                  keyAlgorithm: EC256
+                  verificationType: dns
+                  requestKey: apply-20260717-001
+              renew:
+                summary: 续订证书
+                value:
+                  action: renew
+                  certKey: cert_a1b2c3
+                  requestKey: renew-20260717-001
+              revoke:
+                summary: 吊销证书
+                value:
+                  action: revoke
+                  certKey: cert_a1b2c3
+                  requestKey: revoke-20260717-001
+              delete:
+                summary: 删除平台记录
+                value:
+                  action: delete
+                  certKey: cert_a1b2c3
+      responses:
+        '200':
+          description: 操作已受理或同步删除完成。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateActionSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cert/{certKey}:
+    get:
+      tags: [Certificates]
+      operationId: getCertificate
+      summary: 查询证书详情
+      parameters:
+        - $ref: '#/components/parameters/CertKey'
+      responses:
+        '200':
+          description: 证书详情。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateDetailSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cert/{certKey}/download:
+    get:
+      tags: [Certificates]
+      operationId: downloadCertificate
+      summary: 下载证书
+      description: format 默认为 tar；错误始终返回非 2xx JSON envelope。
+      parameters:
+        - $ref: '#/components/parameters/CertKey'
+        - name: format
+          in: query
+          description: 下载格式。
+          schema:
+            type: string
+            enum: [tar, json]
+            default: tar
+      responses:
+        '200':
+          description: tar 文件或 JSON 证书内容。
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateDownloadSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cert-operations/{operationId}:
+    get:
+      tags: [Certificate operations]
+      operationId: getCertificateOperation
+      summary: 查询证书异步操作
+      description: 返回从请求节点开始的自动重试链最新节点。
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          description: 十进制字符串异步操作 ID。
+          schema:
+            $ref: '#/components/schemas/OperationID'
+          example: '123'
+      responses:
+        '200':
+          description: 最新异步操作详情。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateOperationSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: ANSSL 开放平台 AccessKey。
+
+  parameters:
+    CertKey:
+      name: certKey
+      in: path
+      required: true
+      description: 证书对外唯一标识。
+      schema:
+        type: string
+        minLength: 1
+      example: cert_a1b2c3
+    Page:
+      name: page
+      in: query
+      description: 从 1 开始的页码。
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+    PageSize:
+      name: size
+      in: query
+      description: 每页数量，最大 100。
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: 请求格式、字段或枚举错误。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BadRequestErrorResponse'
+    Unauthorized:
+      description: AccessKey 缺失、无效或已过期。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedErrorResponse'
+    NotFound:
+      description: 证书或操作不存在。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundErrorResponse'
+    Conflict:
+      description: 幂等键、验证结果或证书状态冲突。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConflictErrorResponse'
+    TooManyRequests:
+      description: 请求超过限流。
+      headers:
+        Retry-After:
+          description: 建议等待的秒数。
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TooManyRequestsErrorResponse'
+    InternalServerError:
+      description: 服务内部错误。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalErrorResponse'
+
+  schemas:
+    SuccessCode:
+      type: integer
+      enum: [0]
+      description: 成功 envelope code。
+    SuccessMessage:
+      type: string
+      enum: [success]
+      description: 成功 envelope message。
+    ErrorMessage:
+      type: string
+      minLength: 1
+      description: 不应被客户端用于分支判断的可读错误信息。
+    BadRequestErrorResponse:
+      $ref: '#/components/schemas/Error400'
+    UnauthorizedErrorResponse:
+      $ref: '#/components/schemas/Error401'
+    NotFoundErrorResponse:
+      $ref: '#/components/schemas/Error404'
+    ConflictErrorResponse:
+      $ref: '#/components/schemas/Error409'
+    TooManyRequestsErrorResponse:
+      $ref: '#/components/schemas/Error429'
+    InternalErrorResponse:
+      $ref: '#/components/schemas/Error500'
+    Error400:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [400]
+          description: 与 HTTP 400 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    Error401:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [401]
+          description: 与 HTTP 401 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    Error404:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [404]
+          description: 与 HTTP 404 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    Error409:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [409]
+          description: 与 HTTP 409 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    Error429:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [429]
+          description: 与 HTTP 429 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    Error500:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [500]
+          description: 与 HTTP 500 一致的错误码。
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+
+    OperationID:
+      type: string
+      pattern: '^[1-9][0-9]*$'
+      description: 避免跨语言 int64 精度问题的十进制字符串操作 ID。
+    RequestKey:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: 用户范围内的可选幂等键；省略时由服务端生成。
+    CertificateStatus:
+      type: string
+      description: 证书当前状态。
+      enum: [applying, normal, failed, expired, revoked]
+    CertificateActionStatus:
+      type: string
+      description: 生命周期请求受理后的提示状态。
+      enum: [applying, renewing, revoking, deleted]
+    CertificateOperationType:
+      type: string
+      description: 异步证书操作类型。
+      enum: [apply, renew, revoke, unknown]
+    CertificateOperationStatus:
+      type: string
+      description: 异步操作执行状态。
+      enum: [pending, running, waiting_validation, succeeded, failed, canceled, unknown]
+    CertificateAuthority:
+      type: string
+      description: 证书颁发机构。
+      enum: [LetsEncrypt, ZeroSSL, Google, SSLCom, Actalis]
+    CertificateKeyAlgorithm:
+      type: string
+      description: 对外统一的证书密钥算法。
+      enum: [EC256, EC384, RSA2048, RSA4096]
+    VerificationType:
+      type: string
+      description: ACME 验证方式。
+      enum: [dns, http]
+    DomainList:
+      type: array
+      description: 非空且不重复的域名列表，最多 100 项。
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+
+    CheckDomainRequest:
+      type: object
+      required: [domains]
+      properties:
+        certKey:
+          type: string
+          minLength: 1
+          description: 可选关联证书标识。
+        domains:
+          $ref: '#/components/schemas/DomainList'
+    CheckDomainItem:
+      type: object
+      required: [domain, key, originKey, value, status, statusCode]
+      properties:
+        domain:
+          type: string
+          description: 被检查的域名。
+        key:
+          type: string
+          description: CNAME 记录名。
+        originKey:
+          type: string
+          description: 原始 challenge 记录名。
+        value:
+          type: string
+          description: CNAME 目标值。
+        status:
+          type: string
+          enum: [unknown, normal, failed]
+          description: 可读解析状态。
+        statusCode:
+          type: integer
+          format: int32
+          enum: [0, 1, 2]
+          description: 0 未知、1 正常、2 失败。
+    CheckDomainData:
+      type: object
+      required: [cnames]
+      properties:
+        cnames:
+          type: array
+          description: CNAME 检查结果列表。
+          items:
+            $ref: '#/components/schemas/CheckDomainItem'
+    CheckDomainSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CheckDomainData'
+
+    ApplyCertificateRequest:
+      type: object
+      required: [domains]
+      properties:
+        action:
+          type: string
+          enum: [apply]
+          default: apply
+          description: 省略时默认为 apply。
+        domains:
+          $ref: '#/components/schemas/DomainList'
+        ca:
+          allOf: [{ $ref: '#/components/schemas/CertificateAuthority' }]
+          default: LetsEncrypt
+        keyAlgorithm:
+          allOf: [{ $ref: '#/components/schemas/CertificateKeyAlgorithm' }]
+          default: EC256
+        verificationType:
+          allOf: [{ $ref: '#/components/schemas/VerificationType' }]
+          default: dns
+        requestKey:
+          $ref: '#/components/schemas/RequestKey'
+    RenewCertificateRequest:
+      type: object
+      required: [action, certKey]
+      properties:
+        action:
+          type: string
+          enum: [renew]
+          description: 固定为 renew。
+        certKey:
+          type: string
+          minLength: 1
+          description: 要续订的证书标识。
+        requestKey:
+          $ref: '#/components/schemas/RequestKey'
+    RevokeCertificateRequest:
+      type: object
+      required: [action, certKey]
+      properties:
+        action:
+          type: string
+          enum: [revoke]
+          description: 固定为 revoke。
+        certKey:
+          type: string
+          minLength: 1
+          description: 要吊销的证书标识。
+        requestKey:
+          $ref: '#/components/schemas/RequestKey'
+    DeleteCertificateRequest:
+      type: object
+      required: [action, certKey]
+      properties:
+        action:
+          type: string
+          enum: [delete]
+          description: 固定为 delete。
+        certKey:
+          type: string
+          minLength: 1
+          description: 要删除的平台证书标识。
+
+    CertificateActionData:
+      type: object
+      required: [certKey, status, domains, createdAt]
+      properties:
+        certKey:
+          type: string
+          description: 证书外部唯一标识。
+        status:
+          $ref: '#/components/schemas/CertificateActionStatus'
+        domains:
+          type: array
+          description: 证书域名列表。
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: 证书记录创建时间。
+        operationId:
+          $ref: '#/components/schemas/OperationID'
+        requestKey:
+          type: string
+          description: 异步操作实际使用的幂等键。
+    CertificateActionSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CertificateActionData'
+
+    CertificateSummary:
+      type: object
+      required: [certKey, domain, domains, status, ca, keyAlgorithm, createdAt, updatedAt]
+      properties:
+        certKey:
+          type: string
+          description: 证书外部唯一标识。
+        domain:
+          type: string
+          description: 证书主域名。
+        domains:
+          type: array
+          description: 证书域名列表。
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/CertificateStatus'
+        ca:
+          $ref: '#/components/schemas/CertificateAuthority'
+        keyAlgorithm:
+          $ref: '#/components/schemas/CertificateKeyAlgorithm'
+        notBefore:
+          type: string
+          format: date-time
+          description: 证书生效时间。
+        notAfter:
+          type: string
+          format: date-time
+          description: 证书过期时间。
+        daysLeft:
+          type: integer
+          format: int32
+          description: 剩余有效天数。
+        failureReason:
+          type: string
+          description: 最近失败原因。
+        createdAt:
+          type: string
+          format: date-time
+          description: 记录创建时间。
+        updatedAt:
+          type: string
+          format: date-time
+          description: 记录更新时间。
+    CertificateListData:
+      type: object
+      required: [certs, total, page, size]
+      properties:
+        certs:
+          type: array
+          description: 当前页证书列表。
+          items:
+            $ref: '#/components/schemas/CertificateSummary'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 总记录数。
+        page:
+          type: integer
+          format: int32
+          minimum: 1
+          description: 当前页码。
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          description: 当前页大小。
+    CertificateListSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CertificateListData'
+
+    CertificateDetail:
+      type: object
+      required: [certKey, status, domains, ca, keyAlgorithm, createdAt, updatedAt]
+      properties:
+        certKey:
+          type: string
+          description: 证书外部唯一标识。
+        status:
+          $ref: '#/components/schemas/CertificateStatus'
+        domains:
+          type: array
+          description: 证书域名列表。
+          items:
+            type: string
+        ca:
+          $ref: '#/components/schemas/CertificateAuthority'
+        keyAlgorithm:
+          $ref: '#/components/schemas/CertificateKeyAlgorithm'
+        notBefore:
+          type: string
+          format: date-time
+          description: 证书生效时间。
+        notAfter:
+          type: string
+          format: date-time
+          description: 证书过期时间。
+        daysLeft:
+          type: integer
+          format: int32
+          description: 剩余有效天数。
+        failureReason:
+          type: string
+          description: 最近失败原因。
+        createdAt:
+          type: string
+          format: date-time
+          description: 记录创建时间。
+        updatedAt:
+          type: string
+          format: date-time
+          description: 记录更新时间。
+    CertificateDetailSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CertificateDetail'
+
+    CertificateOperation:
+      type: object
+      required: [requestedOperationId, operationId, certKey, type, status, requestKey, attempt, maxAttempts, createdAt, updatedAt]
+      properties:
+        requestedOperationId:
+          $ref: '#/components/schemas/OperationID'
+        operationId:
+          $ref: '#/components/schemas/OperationID'
+        certKey:
+          type: string
+          description: 关联证书外部标识。
+        type:
+          $ref: '#/components/schemas/CertificateOperationType'
+        status:
+          $ref: '#/components/schemas/CertificateOperationStatus'
+        requestKey:
+          type: string
+          description: 实际使用的幂等键。
+        attempt:
+          type: integer
+          format: int32
+          minimum: 0
+          description: 已执行次数。
+        maxAttempts:
+          type: integer
+          format: int32
+          minimum: 1
+          description: 最大执行次数。
+        failureReason:
+          type: string
+          description: 最近失败原因。
+        createdAt:
+          type: string
+          format: date-time
+          description: 操作创建时间。
+        updatedAt:
+          type: string
+          format: date-time
+          description: 操作更新时间。
+        startedAt:
+          type: string
+          format: date-time
+          description: 首次开始时间。
+        finishedAt:
+          type: string
+          format: date-time
+          description: 进入终态时间。
+    CertificateOperationSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CertificateOperation'
+
+    CertificateDownload:
+      type: object
+      required: [domain, certificate, privateKey, fullChain]
+      properties:
+        domain:
+          type: string
+          description: 证书主域名。
+        certificate:
+          type: string
+          description: 叶证书 PEM。
+        privateKey:
+          type: string
+          description: 私钥 PEM。
+        issuerCertificate:
+          type: string
+          description: CA 中间证书 PEM。
+        fullChain:
+          type: string
+          description: 完整证书链 PEM。
+    CertificateDownloadSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          $ref: '#/components/schemas/SuccessCode'
+        message:
+          $ref: '#/components/schemas/SuccessMessage'
+        data:
+          $ref: '#/components/schemas/CertificateDownload'
